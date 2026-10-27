@@ -1,0 +1,46 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Pen Fight</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#111827;color:white;font-family:system-ui;text-align:center;padding:14px}
+h1{margin:5px;font-size:27px}
+p{color:#cbd5e1}
+.score{display:flex;justify-content:space-between;font-weight:bold;font-size:18px;margin:14px 0}
+#arena{width:100%;height:55vh;min-height:300px;max-height:540px;background:linear-gradient(110deg,#d6b47e,#a8794c);border:4px solid #68472d;border-radius:16px;touch-action:none;display:block}
+button{background:#60a5fa;color:#111827;border:0;border-radius:12px;padding:13px 18px;font-weight:bold;font-size:16px;margin:7px}
+#msg{min-height:45px;font-weight:600}
+</style>
+</head>
+<body>
+<h1>🖊️ PEN FIGHT</h1>
+<p>Two players · One iPhone · First to 2 rounds</p>
+<div class="score"><span style="color:#60c5ff">BLUE: <b id="s1">0</b></span><span style="color:#ff758f">RED: <b id="s2">0</b></span></div>
+<canvas id="arena"></canvas>
+<div id="msg">Tap Start Match to play.</div>
+<button id="start">Start Match</button><button id="reset">Reset Match</button>
+<p>Touch your pen and swipe to flick it. Pass the phone after each turn.</p>
+<script>
+const c=document.getElementById('arena'),x=c.getContext('2d');
+const msg=document.getElementById('msg');
+let W=0,H=0,score=[0,0],turn=0,started=false,over=false,drag=null,raf=0;
+const P=[{x:0,y:0,vx:0,vy:0,col:'#45b8ff',name:'BLUE'},{x:0,y:0,vx:0,vy:0,col:'#ff5c7a',name:'RED'}],R=19;
+function size(){let r=c.getBoundingClientRect();let d=Math.min(devicePixelRatio||1,2);W=r.width;H=r.height;c.width=W*d;c.height=H*d;x.setTransform(d,0,0,d,0,0);draw()}
+function place(){P[0].x=W/2;P[0].y=H*.72;P[1].x=W/2;P[1].y=H*.28;P.forEach(p=>{p.vx=0;p.vy=0});turn=0;over=false;started=true;msg.textContent='Player 1 BLUE: swipe from your pen.';cancelAnimationFrame(raf);raf=requestAnimationFrame(loop)}
+function draw(){x.clearRect(0,0,W,H);let g=x.createLinearGradient(0,0,W,H);g.addColorStop(0,'#e0c08d');g.addColorStop(1,'#a8784d');x.fillStyle=g;x.fillRect(0,0,W,H);x.strokeStyle='#70482b66';for(let y=20;y<H;y+=35){x.beginPath();x.moveTo(0,y);x.lineTo(W,y+4);x.stroke()}x.setLineDash([7,6]);x.strokeStyle='#7f302b';x.lineWidth=3;x.strokeRect(5,5,W-10,H-10);x.setLineDash([]);P.forEach((p,i)=>{x.save();x.translate(p.x,p.y);x.rotate(Math.atan2(p.vy,p.vx)||0);x.fillStyle='#432b1d66';x.fillRect(-27,3,59,10);x.fillStyle=p.col;x.beginPath();x.roundRect(-28,-6,54,12,5);x.fill();x.fillStyle='#ddd';x.beginPath();x.moveTo(26,-4);x.lineTo(37,0);x.lineTo(26,4);x.fill();x.fillStyle='#fff';x.font='bold 7px system-ui';x.textAlign='center';x.fillText(p.name,-1,2.5);x.restore()})}
+function next(){if(score[0]>=2||score[1]>=2){over=true;started=false;msg.textContent=(score[0]>=2?'BLUE':'RED')+' wins the match! Tap Start Match to play again.';return}turn=1-turn;P.forEach(p=>{p.vx=0;p.vy=0});msg.textContent='Pass phone to Player '+(turn+1)+' ('+P[turn].name+'). Swipe your pen.'}
+function end(w){if(over)return;score[w]++;document.getElementById('s1').textContent=score[0];document.getElementById('s2').textContent=score[1];started=false;over=true;msg.textContent=P[w].name+' wins the round! Tap Start Match for next round.'}
+function loop(){if(!started)return;let moving=false;P.forEach(p=>{p.x+=p.vx;p.y+=p.vy;p.vx*=.986;p.vy*=.986;if(Math.abs(p.vx)<.08)p.vx=0;if(Math.abs(p.vy)<.08)p.vy=0;if(p.vx||p.vy)moving=true;if(p.x<R){p.x=R;p.vx=Math.abs(p.vx)*.6}if(p.x>W-R){p.x=W-R;p.vx=-Math.abs(p.vx)*.6}});let a=P[0],b=P[1],dx=b.x-a.x,dy=b.y-a.y,d=Math.hypot(dx,dy)||1;if(d<R*2){let nx=dx/d,ny=dy/d,overlap=R*2-d;a.x-=nx*overlap/2;b.x+=nx*overlap/2;a.y-=ny*overlap/2;b.y+=ny*overlap/2;let rel=(a.vx-b.vx)*nx+(a.vy-b.vy)*ny;if(rel>0){a.vx-=rel*.8*nx;b.vx+=rel*.8*nx;a.vy-=rel*.8*ny;b.vy+=rel*.8*ny}}for(let i=0;i<2;i++)if(P[i].y<-R||P[i].y>H+R){end(1-i);draw();return}draw();if(!moving&&!drag&&window.pending){window.pending=false;next()}if(started)raf=requestAnimationFrame(loop)}
+function point(e){let r=c.getBoundingClientRect();return{x:e.clientX-r.left,y:e.clientY-r.top}}
+c.addEventListener('pointerdown',e=>{if(!started||over)return;let q=point(e),p=P[turn];if(Math.hypot(q.x-p.x,q.y-p.y)<R+22){drag={sx:q.x,sy:q.y};c.setPointerCapture(e.pointerId)}});
+c.addEventListener('pointerup',e=>{if(!drag)return;let q=point(e),p=P[turn],dx=q.x-drag.sx,dy=q.y-drag.sy,l=Math.hypot(dx,dy);drag=null;if(l<8)return;p.vx=dx/l*Math.min(11,l*.11);p.vy=dy/l*Math.min(11,l*.11);window.pending=true;msg.textContent='Flick! Watch the pens…';cancelAnimationFrame(raf);raf=requestAnimationFrame(loop)});
+document.getElementById('start').onclick=()=>{if(score[0]>=2||score[1]>=2){score=[0,0];document.getElementById('s1').textContent='0';document.getElementById('s2').textContent='0'}place()};
+document.getElementById('reset').onclick=()=>{score=[0,0];document.getElementById('s1').textContent='0';document.getElementById('s2').textContent='0';started=false;over=false;msg.textContent='Match reset. Tap Start Match.';draw()};
+window.addEventListener('resize',size);size();draw();
+</script>
+</body>
+</html>
